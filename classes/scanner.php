@@ -82,6 +82,8 @@ class scanner extends \core\antivirus\scanner {
      * @return boolean whether the file is encrypted
      */
     protected function is_archive_encrypted(string $file) : bool {
+
+        // Use zipcloak from the CLI to attempt to put a password on the archive.
         return true;
     }
 
@@ -119,25 +121,5 @@ class scanner extends \core\antivirus\scanner {
 
         // The filetype isn't known, or the document or archive group isn't present.
         return self::FILE_OTHER;
-    }
-
-    /**
-     * Determines whether the file is a document.
-     *
-     * @param string $file the full path to the file
-     * @return boolean whether the file is a document
-     */
-    protected function is_document(string $file) : bool {
-        return true;
-    }
-
-    /**
-     * Determines whether the file is an archive.
-     *
-     * @param string $file the full path to the file
-     * @return boolean whether the file is an archive
-     */
-    protected function is_archive(string $file) : bool {
-        return true;
     }
 }
