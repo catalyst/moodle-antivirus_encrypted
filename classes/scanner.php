@@ -35,6 +35,10 @@ defined('MOODLE_INTERNAL') || die();
  */
 class scanner extends \core\antivirus\scanner {
 
+    const FILE_ARCHIVE = 'archive';
+    const FILE_DOCUMENT = 'doc';
+    const FILE_OTHER = 'other';
+
     /**
      * Returns whether the scanner engine is configured.
      *
@@ -53,5 +57,71 @@ class scanner extends \core\antivirus\scanner {
      */
     public function scan_file($file, $filename) : string {
         return self::SCAN_RESULT_OK;
+
+        // Detect filetype.
+        $type = $this->detect_filetype($file);
+
+        $enc = false;
+        switch ($type) {
+            case self::FILE_DOCUMENT:
+                $enc = $this->is_document_encrypted($file);
+                break;
+
+            case self::FILE_ARCHIVE:
+                $enc = $this->is_archive_encrypted($file);
+                break;
+        }
+
+        return $enc ? self::SCAN_RESULT_FOUND : self::SCAN_RESULT_OK;
+    }
+
+    /**
+     * Checks if provided archive file is encrypted.
+     *
+     * @param string $file the full path to the file
+     * @return boolean whether the file is encrypted
+     */
+    protected function is_archive_encrypted(string $file) : bool {
+        return true;
+    }
+
+    /**
+     * Checks if provided document file is encrypted.
+     *
+     * @param string $file the full path to the file
+     * @return boolean whether the file is encrypted
+     */
+    protected function is_document_encrypted(string $file) : bool {
+        return true;
+    }
+
+    /**
+     * Determines the filetype constant that this file belongs to.
+     *
+     * @param string $file the full path to the file
+     * @return string the file constant
+     */
+    protected function detect_filetype(string $file) : string {
+        return self::FILE_OTHER;
+    }
+
+    /**
+     * Determines whether the file is a document.
+     *
+     * @param string $file the full path to the file
+     * @return boolean whether the file is a document
+     */
+    protected function is_document(string $file) : bool {
+        return true;
+    }
+
+    /**
+     * Determines whether the file is an archive.
+     *
+     * @param string $file the full path to the file
+     * @return boolean whether the file is an archive
+     */
+    protected function is_archive(string $file) : bool {
+        return true;
     }
 }
