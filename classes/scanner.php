@@ -102,6 +102,22 @@ class scanner extends \core\antivirus\scanner {
      * @return string the file constant
      */
     protected function detect_filetype(string $file) : string {
+
+        // Get the file extension
+        $extension = pathinfo($file, PATHINFO_EXTENSION);
+
+        $mimetypes = get_mimetypes_array();
+        if (array_key_exists($extension, $mimetypes)) {
+            // Get containing group, and check if document or archive
+            $groups = file_get_typegroup('type', $extension);
+            if (in_array('document', $groups)) {
+                return self::FILE_DOCUMENT;
+            } else if (in_array('archive', $groups)) {
+                return self::FILE_ARCHIVE;
+            }
+        }
+
+        // The filetype isn't known, or the document or archive group isn't present.
         return self::FILE_OTHER;
     }
 
