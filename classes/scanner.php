@@ -22,9 +22,11 @@
  * @copyright   Catalyst IT
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+namespace antivirus_encrypted;
+
+use core_filetypes;
 
 defined('MOODLE_INTERNAL') || die();
-
 /**
  * Scanner class for antivirus_encrypted.
  *
@@ -53,13 +55,11 @@ class scanner extends \core\antivirus\scanner {
      *
      * @param string $file full path for file.
      * @param string $filename the name of the file.
-     * @return string status of the scan
+     * @return int status of the scan
      */
-    public function scan_file($file, $filename) : string {
-        return self::SCAN_RESULT_OK;
-
+    public function scan_file($file, $filename) : int {
         // Detect filetype.
-        $type = $this->detect_filetype($file);
+        $type = $this->detect_filetype($filename);
 
         $enc = false;
         switch ($type) {
@@ -68,7 +68,7 @@ class scanner extends \core\antivirus\scanner {
                 break;
 
             case self::FILE_ARCHIVE:
-                $enc = $this->is_archive_encrypted($file);
+                $enc = $this->is_archive_encrypted($file, $filename);
                 break;
         }
 
@@ -81,10 +81,13 @@ class scanner extends \core\antivirus\scanner {
      * @param string $file the full path to the file
      * @return boolean whether the file is encrypted
      */
-    protected function is_archive_encrypted(string $file) : bool {
+    protected function is_archive_encrypted(string $file, string $filename) : bool {
+        $extension = pathinfo($filename, PATHINFO_EXTENSION);
 
-        // Use zipcloak from the CLI to attempt to put a password on the archive.
-        return true;
+        // Zip implementation.
+        if ($extension === 'zip') {
+            return $this->is_zip_encrypted($file);
+        }
     }
 
     /**
@@ -103,15 +106,15 @@ class scanner extends \core\antivirus\scanner {
      * @param string $file the full path to the file
      * @return string the file constant
      */
-    protected function detect_filetype(string $file) : string {
+    protected function detect_filetype(string $filename) : string {
 
         // Get the file extension
-        $extension = pathinfo($file, PATHINFO_EXTENSION);
+        $extension = pathinfo($filename, PATHINFO_EXTENSION);
 
         $mimetypes = get_mimetypes_array();
         if (array_key_exists($extension, $mimetypes)) {
             // Get containing group, and check if document or archive
-            $groups = file_get_typegroup('type', $extension);
+            $groups = $mimetypes[$extension]['groups'];
             if (in_array('document', $groups)) {
                 return self::FILE_DOCUMENT;
             } else if (in_array('archive', $groups)) {
@@ -121,5 +124,28 @@ class scanner extends \core\antivirus\scanner {
 
         // The filetype isn't known, or the document or archive group isn't present.
         return self::FILE_OTHER;
+    }
+
+    /**
+     * This functions attempts to open and read a zip. Failure points to passworded file.
+     * If passed a file that is not a zip this will not be correct.
+     *
+     * @param string $file the full path to the file.
+     * @return boolean whether the file is encrypted.
+     */
+    protected function is_zip_encrypted(string $file) : bool {
+        // Try to open as a zip. If it fails, may be passworded.
+        $zip = zip_open($file);
+        if (!is_resource($zip)) {
+            return true;
+        }
+
+        $data = zip_read($zip);
+        if (!$data) {
+            // If unable to read data, may be passworded.
+            return true;
+        }
+
+        return false;
     }
 }
