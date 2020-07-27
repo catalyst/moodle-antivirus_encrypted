@@ -183,7 +183,7 @@ class scanner extends \core\antivirus\scanner {
      * @return boolean
      */
     protected function is_libreoffice_encrypted(string $file) : bool {
-        // We need to open the archive as a zip and extract the META-INF/manifest.xml and check for salt.
+        // We need to open the archive as a zip and extract the META-INF/manifest.xml and check for encryption data.
         // We have already determined this will open correctly. Any errors should just return true.
         $zip = new \ZipArchive();
         $zip->open($file);
