@@ -24,8 +24,6 @@
  */
 namespace antivirus_encrypted;
 
-use core_filetypes;
-
 defined('MOODLE_INTERNAL') || die();
 /**
  * Scanner class for antivirus_encrypted.
@@ -40,6 +38,11 @@ class scanner extends \core\antivirus\scanner {
     const FILE_ARCHIVE = 'archive';
     const FILE_DOCUMENT = 'doc';
     const FILE_OTHER = 'other';
+
+    /**
+     * @var string filetype the filetype for deciding behaviour.
+     */
+    private $filetype = '';
 
     /**
      * Returns whether the scanner engine is configured.
@@ -64,7 +67,7 @@ class scanner extends \core\antivirus\scanner {
         $enc = false;
         switch ($type) {
             case self::FILE_DOCUMENT:
-                $enc = $this->is_document_encrypted($file);
+                $enc = $this->is_document_encrypted($file, $filename);
                 break;
 
             case self::FILE_ARCHIVE:
@@ -96,7 +99,22 @@ class scanner extends \core\antivirus\scanner {
      * @param string $file the full path to the file
      * @return boolean whether the file is encrypted
      */
-    protected function is_document_encrypted(string $file) : bool {
+    protected function is_document_encrypted(string $file, string $filename) : bool {
+
+        if (empty($this->filetype)) {
+            // We need to figure out the filetype.
+        } else {
+            $filetype = $this->filetype;
+        }
+
+        switch ($filetype) {
+            case 'libreoffice':
+                return $this->is_libreoffice_encrypted($file);
+                break;
+        }
+
+
+        // Use mimetype to determine if libreoffice documents.
         return true;
     }
 
@@ -110,20 +128,29 @@ class scanner extends \core\antivirus\scanner {
 
         // Get the file extension
         $extension = pathinfo($filename, PATHINFO_EXTENSION);
-
         $mimetypes = get_mimetypes_array();
+        $type = '';
+
         if (array_key_exists($extension, $mimetypes)) {
             // Get containing group, and check if document or archive
             $groups = $mimetypes[$extension]['groups'];
-            if (in_array('document', $groups)) {
-                return self::FILE_DOCUMENT;
-            } else if (in_array('archive', $groups)) {
-                return self::FILE_ARCHIVE;
+            if (!empty($groups)) {
+                if (in_array('document', $groups)) {
+                    $type = self::FILE_DOCUMENT;
+                } else if (in_array('archive', $groups)) {
+                    $type = self::FILE_ARCHIVE;
+                }
+            }
+
+            // If there are no groups, perform more checks to identify type.
+            if (stripos($mimetypes[$extension]['type'], 'vnd.oasis.opendocument')) {
+                // This is a libreoffice file of some kind. Treat all as docs for scanning purposes.
+                $this->filetype = 'libreoffice';
+                $type = self::FILE_DOCUMENT;
             }
         }
 
-        // The filetype isn't known, or the document or archive group isn't present.
-        return self::FILE_OTHER;
+        return empty($type) ? self::FILE_OTHER : $type;
     }
 
     /**
@@ -147,5 +174,27 @@ class scanner extends \core\antivirus\scanner {
         }
 
         return false;
+    }
+
+    /**
+     * Reads a libreoffice file and determines if it is encrypted.
+     *
+     * @param string $file the full path to the file
+     * @return boolean
+     */
+    protected function is_libreoffice_encrypted(string $file) : bool {
+        // We need to open the archive as a zip and extract the META-INF/manifest.xml and check for salt.
+        // We have already determined this will open correctly. Any errors should just return true.
+        $zip = new \ZipArchive();
+        $zip->open($file);
+        $manifest = $zip->getFromName('META-INF/manifest.xml');
+        $zip->close();
+
+        // A simple grep for encryption-data string is enough to determine.
+        if (!empty($manifest) && !stripos($manifest, 'encryption-data')) {
+            return false;
+        }
+
+        return true;
     }
 }
