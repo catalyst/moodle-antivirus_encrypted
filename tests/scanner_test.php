@@ -43,7 +43,10 @@ class antivirus_encrypted_scanner_testcase extends \advanced_testcase {
         ];
     }
 
-    // Test using fixture files
+
+    /**
+     * @dataProvider scan_file_provider
+     */
     public function test_scan_file($path, $expected) {
         $fullpath = __DIR__ . '/fixtures/' . $path;
         $scanner = new \antivirus_encrypted\scanner();

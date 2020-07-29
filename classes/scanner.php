@@ -25,11 +25,10 @@
 namespace antivirus_encrypted;
 
 use core_filetypes;
-
-// Manually include the FPDI library from mod_assign
+defined('MOODLE_INTERNAL') || die();
+// Manually include the FPDI library from mod_assign.
 require_once($CFG->dirroot . '/mod/assign/feedback/editpdf/fpdi/pdf_parser.php');
 
-defined('MOODLE_INTERNAL') || die();
 /**
  * Scanner class for antivirus_encrypted.
  *
@@ -108,9 +107,12 @@ class scanner extends \core\antivirus\scanner {
      * @return boolean whether the file is encrypted
      */
     protected function is_archive_encrypted(string $file) : bool {
+        // @codingStandardsIgnoreStart
+        // This block will need code eventually.
         if (empty($this->filetype)) {
             // Detect filetype here if not set.
         }
+        // @codingStandardsIgnoreEnd
 
         switch ($this->filetype) {
             case 'zip':
@@ -128,12 +130,15 @@ class scanner extends \core\antivirus\scanner {
      * @return boolean whether the file is encrypted
      */
     protected function is_document_encrypted(string $file) : bool {
-
+        // @codingStandardsIgnoreStart
+        // This block will need code eventually.
         if (empty($this->filetype)) {
             // We need to figure out the filetype.
         } else {
             $filetype = $this->filetype;
         }
+        // @codingStandardsIgnoreEnd
+
 
         switch ($filetype) {
             case 'libreoffice':
@@ -159,7 +164,7 @@ class scanner extends \core\antivirus\scanner {
         $type = '';
 
         if (array_key_exists($this->extension, $mimetypes)) {
-            // Get containing group, and check if document or archive
+            // Get containing group, and check if document or archive.
             $groups = $mimetypes[$this->extension]['groups'];
             if (!empty($groups)) {
                 if (in_array('document', $groups)) {
