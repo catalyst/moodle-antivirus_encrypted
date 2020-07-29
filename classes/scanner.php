@@ -24,6 +24,8 @@
  */
 namespace antivirus_encrypted;
 
+use core_filetypes;
+
 // Manually include the FPDI library from mod_assign
 require_once($CFG->dirroot . '/mod/assign/feedback/editpdf/fpdi/pdf_parser.php');
 
@@ -48,6 +50,11 @@ class scanner extends \core\antivirus\scanner {
     private $filetype = '';
 
     /**
+     * @var string extension the extension of the file
+     */
+    private $extension = '';
+
+    /**
      * Returns whether the scanner engine is configured.
      *
      * @return boolean
@@ -69,17 +76,25 @@ class scanner extends \core\antivirus\scanner {
      * @return int status of the scan
      */
     public function scan_file($file, $filename) : int {
-        // Detect filetype.
-        $type = $this->detect_filetype($filename);
+        // Check if the file extension is even allowed in the system.
+        // If not, return OK and it will be blocked at file level.
+        $this->extension = pathinfo($filename, PATHINFO_EXTENSION);
+        $filteredtype = core_filetypes::file_apply_siterestrictions([$this->extension]);
+        if (empty($filteredtype)) {
+            return self::SCAN_RESULT_OK;
+        }
+
+        // Detect type constant, as well as set specific filetype if known (eg libreoffice).
+        $type = $this->detect_filetype();
 
         $enc = false;
         switch ($type) {
             case self::FILE_DOCUMENT:
-                $enc = $this->is_document_encrypted($file, $filename);
+                $enc = $this->is_document_encrypted($file);
                 break;
 
             case self::FILE_ARCHIVE:
-                $enc = $this->is_archive_encrypted($file, $filename);
+                $enc = $this->is_archive_encrypted($file);
                 break;
         }
 
@@ -92,12 +107,17 @@ class scanner extends \core\antivirus\scanner {
      * @param string $file the full path to the file
      * @return boolean whether the file is encrypted
      */
-    protected function is_archive_encrypted(string $file, string $filename) : bool {
-        $extension = pathinfo($filename, PATHINFO_EXTENSION);
+    protected function is_archive_encrypted(string $file) : bool {
+        if (empty($this->filetype)) {
+            // Detect filetype here if not set.
+        }
 
-        // Zip implementation.
-        if ($extension === 'zip') {
-            return $this->is_zip_encrypted($file);
+        switch ($this->filetype) {
+            case 'zip':
+                return $this->is_zip_encrypted($file);
+            default:
+                // This should never happen.
+                return true;
         }
     }
 
@@ -107,7 +127,7 @@ class scanner extends \core\antivirus\scanner {
      * @param string $file the full path to the file
      * @return boolean whether the file is encrypted
      */
-    protected function is_document_encrypted(string $file, string $filename) : bool {
+    protected function is_document_encrypted(string $file) : bool {
 
         if (empty($this->filetype)) {
             // We need to figure out the filetype.
@@ -134,31 +154,28 @@ class scanner extends \core\antivirus\scanner {
      * @param string $file the full path to the file
      * @return string the file constant
      */
-    protected function detect_filetype(string $filename) : string {
-
-        // Get the file extension
-        $extension = pathinfo($filename, PATHINFO_EXTENSION);
+    protected function detect_filetype() : string {
         $mimetypes = get_mimetypes_array();
         $type = '';
 
-        if (array_key_exists($extension, $mimetypes)) {
+        if (array_key_exists($this->extension, $mimetypes)) {
             // Get containing group, and check if document or archive
-            $groups = $mimetypes[$extension]['groups'];
+            $groups = $mimetypes[$this->extension]['groups'];
             if (!empty($groups)) {
                 if (in_array('document', $groups)) {
                     $type = self::FILE_DOCUMENT;
                     // If properly identified in Document group, set the type to extension.
-                    $this->filetype = $extension;
+                    $this->filetype = $this->extension;
 
                 } else if (in_array('archive', $groups)) {
                     $type = self::FILE_ARCHIVE;
                     // If properly identified in Archive group, set the filetype to extension.
-                    $this->filetype = $extension;
+                    $this->filetype = $this->extension;
                 }
             }
 
             // If there are no groups, perform more checks to identify type.
-            if (stripos($mimetypes[$extension]['type'], 'vnd.oasis.opendocument')) {
+            if (stripos($mimetypes[$this->extension]['type'], 'vnd.oasis.opendocument')) {
                 // This is a libreoffice file of some kind. Treat all as docs for scanning purposes.
                 $this->filetype = 'libreoffice';
                 $type = self::FILE_DOCUMENT;
