@@ -1,0 +1,75 @@
+language: php
+
+sudo: false
+
+cache:
+  directories:
+    - $HOME/.composer/cache
+    - $HOME/.npm
+
+dist: trusty
+
+addons:
+  postgresql: "9.5"
+
+matrix:
+  include:
+    - php: 7.0
+      env: DB=mysqli MOODLE_BRANCH=MOODLE_33_STABLE
+    - php: 7.1
+      env: DB=pgsql  MOODLE_BRANCH=MOODLE_33_STABLE
+    - php: 7.0
+      env: DB=mysqli MOODLE_BRANCH=MOODLE_34_STABLE
+    - php: 7.2
+      env: DB=pgsql  MOODLE_BRANCH=MOODLE_34_STABLE
+    - php: 7.0
+      env: DB=mysqli MOODLE_BRANCH=MOODLE_35_STABLE
+    - php: 7.2
+      env: DB=pgsql  MOODLE_BRANCH=MOODLE_35_STABLE
+    - php: 7.0
+      env: DB=mysqli MOODLE_BRANCH=MOODLE_36_STABLE
+    - php: 7.3
+      env: DB=pgsql  MOODLE_BRANCH=MOODLE_36_STABLE
+    - php: 7.1
+      env: DB=mysqli MOODLE_BRANCH=MOODLE_37_STABLE
+    - php: 7.3
+      env: DB=pgsql  MOODLE_BRANCH=MOODLE_37_STABLE
+    - php: 7.1
+      env: DB=mysqli MOODLE_BRANCH=MOODLE_38_STABLE
+    - php: 7.3
+      env: DB=pgsql  MOODLE_BRANCH=MOODLE_38_STABLE
+    - php: 7.1
+      env: DB=mysqli MOODLE_BRANCH=MOODLE_38_STABLE
+    - php: 7.3
+      env: DB=pgsql  MOODLE_BRANCH=MOODLE_38_STABLE
+    - php: 7.2
+      env: DB=mysqli MOODLE_BRANCH=MOODLE_39_STABLE
+    - php: 7.3
+      env: DB=pgsql  MOODLE_BRANCH=MOODLE_39_STABLE
+    - php: 7.2
+      env: DB=mysqli MOODLE_BRANCH=master
+    - php: 7.2
+      env: DB=pgsql  MOODLE_BRANCH=master
+    - php: 7.3
+      env: DB=mysqli MOODLE_BRANCH=master
+    - php: 7.3
+      env: DB=pgsql  MOODLE_BRANCH=master
+
+before_install:
+  - phpenv config-rm xdebug.ini
+  - cd ../..
+  - composer create-project -n --no-dev --prefer-dist moodlehq/moodle-plugin-ci ci ^3;
+  - export PATH="$(cd ci/bin; pwd):$(cd ci/vendor/bin; pwd):$PATH"
+
+install:
+  - moodle-plugin-ci install -vvv
+
+script:
+  - moodle-plugin-ci validate
+  - moodle-plugin-ci phplint
+  - moodle-plugin-ci phpcpd
+  - moodle-plugin-ci codechecker
+  - moodle-plugin-ci savepoints
+  - moodle-plugin-ci mustache
+  - moodle-plugin-ci grunt
+  - moodle-plugin-ci phpunit
