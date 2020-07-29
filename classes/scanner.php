@@ -24,6 +24,9 @@
  */
 namespace antivirus_encrypted;
 
+// Manually include the FPDI library from mod_assign
+require_once($CFG->dirroot . '/mod/assign/feedback/editpdf/fpdi/pdf_parser.php');
+
 defined('MOODLE_INTERNAL') || die();
 /**
  * Scanner class for antivirus_encrypted.
@@ -50,6 +53,11 @@ class scanner extends \core\antivirus\scanner {
      * @return boolean
      */
     public function is_configured() : bool {
+        // Check that PHP dependencies are available.
+        if (!class_exists('\ZipArchive')) {
+            return false;
+        }
+
         return true;
     }
 
@@ -111,10 +119,12 @@ class scanner extends \core\antivirus\scanner {
             case 'libreoffice':
                 return $this->is_libreoffice_encrypted($file);
                 break;
+
+            case 'pdf':
+                return $this->is_pdf_encrypted($file);
+                break;
         }
 
-
-        // Use mimetype to determine if libreoffice documents.
         return true;
     }
 
@@ -137,8 +147,13 @@ class scanner extends \core\antivirus\scanner {
             if (!empty($groups)) {
                 if (in_array('document', $groups)) {
                     $type = self::FILE_DOCUMENT;
+                    // If properly identified in Document group, set the type to extension.
+                    $this->filetype = $extension;
+
                 } else if (in_array('archive', $groups)) {
                     $type = self::FILE_ARCHIVE;
+                    // If properly identified in Archive group, set the filetype to extension.
+                    $this->filetype = $extension;
                 }
             }
 
@@ -195,6 +210,22 @@ class scanner extends \core\antivirus\scanner {
             return false;
         }
 
+        // Fallthrough to block if unable to open.
         return true;
+    }
+
+    protected function is_pdf_encrypted(string $file) : bool {
+        // Try to read the PDF using PDFI.
+        // This will exception on encrypted content.
+        try {
+            $pdf = new \pdf_parser($file);
+        } catch (\Exception $e) {
+            // Check for encryption message.
+            if ($e->getMessage() === 'File is encrypted!') {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
