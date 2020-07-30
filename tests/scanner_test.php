@@ -43,7 +43,6 @@ class antivirus_encrypted_scanner_testcase extends \advanced_testcase {
         ];
     }
 
-
     /**
      * @dataProvider scan_file_provider
      */
