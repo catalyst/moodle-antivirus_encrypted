@@ -26,8 +26,6 @@ namespace antivirus_encrypted;
 
 use core_filetypes;
 defined('MOODLE_INTERNAL') || die();
-// Manually include the FPDI library from mod_assign.
-require_once($CFG->dirroot . '/mod/assign/feedback/editpdf/fpdi/pdf_parser.php');
 
 /**
  * Scanner class for antivirus_encrypted.
@@ -59,8 +57,16 @@ class scanner extends \core\antivirus\scanner {
      * @return boolean
      */
     public function is_configured() : bool {
+        global $CFG;
+
         // Check that PHP dependencies are available.
         if (!class_exists('\ZipArchive')) {
+            return false;
+        }
+
+        // Check that the FPDI library is available
+        if (!file_exists($CFG->dirroot . '/mod/assign/feedback/editpdf/fpdi/pdf_parser.php') ||
+            !file_exists($CFG->dirroot . '/mod/assign/feedback/editpdf/fpdi/autoload.php')) {
             return false;
         }
 
@@ -238,6 +244,15 @@ class scanner extends \core\antivirus\scanner {
     }
 
     protected function is_pdf_encrypted(string $file) : bool {
+        global $CFG;
+
+        // Manually include the FPDI library from mod_assign.
+        if (file_exists($CFG->dirroot . '/mod/assign/feedback/editpdf/fpdi/pdf_parser.php')) {
+            require_once($CFG->dirroot . '/mod/assign/feedback/editpdf/fpdi/pdf_parser.php');
+        } else if (file_exists($CFG->dirroot . '/mod/assign/feedback/editpdf/fpdi/autoload.php')) {
+            require_once($CFG->dirroot . '/mod/assign/feedback/editpdf/fpdi/autoload.php');
+        }
+
         // Try to read the PDF using PDFI.
         // This will exception on encrypted content.
         try {
