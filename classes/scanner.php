@@ -225,17 +225,20 @@ class scanner extends \core\antivirus\scanner {
         // We need to open the archive as a zip and extract the META-INF/manifest.xml and check for encryption data.
         // We have already determined this will open correctly. Any errors should just return true.
         $zip = new \ZipArchive();
-        $zip->open($file);
+        $opened = $zip->open($file);
+        if (!$opened) {
+            return true;
+        }
         $manifest = $zip->getFromName('META-INF/manifest.xml');
         $zip->close();
 
         // A simple grep for encryption-data string is enough to determine.
-        if (!empty($manifest) && !stripos($manifest, 'encryption-data')) {
-            return false;
+        if (!empty($manifest) && stripos($manifest, 'encryption-data')) {
+            return true;
         }
 
-        // Fallthrough to block if unable to open.
-        return true;
+        // Making it here means no encryption.
+        return false;
     }
 
     protected function is_pdf_encrypted(string $file) : bool {
