@@ -246,36 +246,16 @@ class scanner extends \core\antivirus\scanner {
     }
 
     protected function is_pdf_encrypted(string $file) : bool {
-        global $CFG;
 
-        // Manually include the FPDI library from mod_assign.
-        // We have 2 different code paths based on FPDI library version.
-        if (file_exists($CFG->dirroot . '/mod/assign/feedback/editpdf/fpdi/pdf_parser.php')) {
-            require_once($CFG->dirroot . '/mod/assign/feedback/editpdf/fpdi/pdf_parser.php');
-            // Try to read the PDF using PDFI.
-            // This will exception on encrypted content.
-            try {
-                $pdf = new \pdf_parser($file);
-            } catch (\Exception $e) {
-                // Check for encryption message.
-                if ($e->getMessage() === 'File is encrypted!') {
-                    return true;
-                }
-            }
-
-            return false;
-
-        } else if (file_exists($CFG->dirroot . '/mod/assign/feedback/editpdf/fpdi/autoload.php')) {
-            require_once($CFG->dirroot . '/mod/assign/feedback/editpdf/fpdi/autoload.php');
-
-            try {
-                //$pdf = new
-            } catch {
-
+        try {
+            $pdf = new \assignfeedback_editpdf\pdf();
+            $pages = $pdf->setSourceFile($file);
+        } catch (\Exception $e) {
+            if ($e->getMessage() === 'This PDF document is encrypted and cannot be processed with FPDI.') {
+                return true;
             }
         }
 
-        // No FPDI Library. Bad!
-        return true;
+        return false;
     }
 }
