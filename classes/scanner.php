@@ -251,7 +251,9 @@ class scanner extends \core\antivirus\scanner {
             $pdf = new \assignfeedback_editpdf\pdf();
             $pages = $pdf->setSourceFile($file);
         } catch (\Exception $e) {
-            if ($e->getMessage() === 'This PDF document is encrypted and cannot be processed with FPDI.') {
+            if (stripos($e->getMessage(), 'encrypted')) {
+                // There is a good chance this is the encryption message.
+                // There are different messages for different FPDI libs.
                 return true;
             }
         }
