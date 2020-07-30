@@ -59,16 +59,9 @@ class scanner extends \core\antivirus\scanner {
      * @return boolean
      */
     public function is_configured() : bool {
-        global $CFG;
 
         // Check that PHP dependencies are available.
         if (!class_exists('\ZipArchive')) {
-            return false;
-        }
-
-        // Check that the FPDI library is available
-        if (!file_exists($CFG->dirroot . '/mod/assign/feedback/editpdf/fpdi/pdf_parser.php') ||
-            !file_exists($CFG->dirroot . '/mod/assign/feedback/editpdf/fpdi/autoload.php')) {
             return false;
         }
 
