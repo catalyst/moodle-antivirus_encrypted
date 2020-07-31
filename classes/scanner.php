@@ -167,7 +167,9 @@ class scanner extends \core\antivirus\scanner {
 
         if (array_key_exists($this->extension, $mimetypes)) {
             // Get containing group, and check if document or archive.
-            $groups = $mimetypes[$this->extension]['groups'];
+            if (array_key_exists('groups', $mimetypes[$this->extension])) {
+                $groups = $mimetypes[$this->extension]['groups'];
+            }
             if (!empty($groups)) {
                 if (in_array('document', $groups)) {
                     $type = self::FILE_DOCUMENT;
@@ -181,7 +183,7 @@ class scanner extends \core\antivirus\scanner {
                 }
             }
 
-            // If there are no groups, perform more checks to identify type.
+            // Now lets do some more intelligent type matching for things that may not have a group.
             if (stripos($mimetypes[$this->extension]['type'], 'vnd.oasis.opendocument')) {
                 // This is a libreoffice file of some kind. Treat all as docs for scanning purposes.
                 $this->filetype = 'libreoffice';
