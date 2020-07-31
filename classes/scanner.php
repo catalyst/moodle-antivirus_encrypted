@@ -120,9 +120,12 @@ class scanner extends \core\antivirus\scanner {
         switch ($this->filetype) {
             case 'zip':
                 return $this->is_zip_encrypted($file);
+                break;
+
             default:
                 // This should never happen.
                 return true;
+                break;
         }
     }
 
