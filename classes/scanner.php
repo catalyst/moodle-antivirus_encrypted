@@ -24,9 +24,6 @@
  */
 namespace antivirus_encrypted;
 
-use core_filetypes;
-use FPDI;
-
 defined('MOODLE_INTERNAL') || die();
 
 /**
@@ -79,8 +76,8 @@ class scanner extends \core\antivirus\scanner {
         // Check if the file extension is even allowed in the system.
         // If not, return OK and it will be blocked at file level.
         $this->extension = pathinfo($filename, PATHINFO_EXTENSION);
-        if (method_exists('core_filetypes', 'file_apply_siterestrictions')) {
-            $filteredtype = core_filetypes::file_apply_siterestrictions([$this->extension]);
+        if (method_exists('\core_filetypes', 'file_apply_siterestrictions')) {
+            $filteredtype = \core_filetypes::file_apply_siterestrictions([$this->extension]);
             if (empty($filteredtype)) {
                 return self::SCAN_RESULT_OK;
             }
