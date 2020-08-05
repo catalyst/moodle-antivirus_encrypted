@@ -84,7 +84,12 @@ class scanner extends \core\antivirus\scanner {
         }
 
         // Detect type constant, as well as set specific filetype if known (eg libreoffice).
-        $type = $this->detect_filetype();
+        try {
+            $type = $this->detect_filetype($file);
+        } catch (\core\antivirus\scanner_exception $e) {
+            // File is not what it appears to be. Block it outright.
+            return self::SCAN_RESULT_FOUND;
+        }
 
         $enc = false;
         switch ($type) {
@@ -161,11 +166,17 @@ class scanner extends \core\antivirus\scanner {
      * @param string $file the full path to the file
      * @return string the file constant
      */
-    protected function detect_filetype() : string {
+    protected function detect_filetype($file) : string {
         $mimetypes = get_mimetypes_array();
         $type = '';
 
         if (array_key_exists($this->extension, $mimetypes)) {
+            // First check if the mimetype matches the listed mimetype for the extension.
+            $reported = mime_content_type($file);
+            if ($reported !== $mimetypes[$this->extension]['type']) {
+                throw new \core\antivirus\scanner_exception('Detected mimetype does not match extension mimetype');
+            }
+
             // Get containing group, and check if document or archive.
             if (array_key_exists('groups', $mimetypes[$this->extension])) {
                 $groups = $mimetypes[$this->extension]['groups'];

@@ -57,10 +57,19 @@ class antivirus_encrypted_scanner_testcase extends \advanced_testcase {
         $this->assertEquals($result, $scanner->scan_file($fullpath, $path));
     }
 
+    public function test_scan_file_mimetype_mismatch() {
+        $filename = 'mismatchedmime.odt';
+        $fullpath = __DIR__ . '/fixtures/' . $filename;
+        $scanner = new \antivirus_encrypted\scanner();
+
+        $this->assertEquals(1, $scanner->scan_file($fullpath, $filename));
+    }
+
     /**
      * @dataProvider file_provider
      */
     public function test_detect_filetype($path, $result, $filetype, $expectedclassification) {
+        $fullpath = __DIR__ . '/fixtures/' . $path;
         // We need a fresh scanner everytime.
         $scanner = new \antivirus_encrypted\scanner();
 
@@ -78,10 +87,35 @@ class antivirus_encrypted_scanner_testcase extends \advanced_testcase {
         // Time to do the meaty bit.
         $reflectionmethod = new ReflectionMethod($scanner, 'detect_filetype');
         $reflectionmethod->setAccessible(true);
-        $classification = $reflectionmethod->invoke($scanner);
+        $classification = $reflectionmethod->invoke($scanner, $fullpath);
 
         // Now lets check we get back what we wanted.
         $this->assertEquals($filetype, $reflectedfiletype->getValue($scanner));
         $this->assertEquals($expectedclassification, $classification);
+    }
+
+    public function test_detect_filetype_mimetype_mismatch() {
+        $filename = 'mismatchedmime.odt';
+        $fullpath = __DIR__ . '/fixtures/' . $filename;
+        $scanner = new \antivirus_encrypted\scanner();
+
+        // Let's make stuff public using reflection.
+        $reflectedscanner = new ReflectionClass($scanner);
+        $reflectedextension = $reflectedscanner->getProperty('extension');
+        $reflectedfiletype = $reflectedscanner->getProperty('filetype');
+        $reflectedextension->setAccessible(true);
+        $reflectedfiletype->setAccessible(true);
+
+        // Now setup the extension.
+        $extension = pathinfo($filename, PATHINFO_EXTENSION);
+        $reflectedextension->setValue($scanner, $extension);
+
+        // Time to do the meaty bit.
+        $reflectionmethod = new ReflectionMethod($scanner, 'detect_filetype');
+        $reflectionmethod->setAccessible(true);
+
+        // Now we are looking for an exception to be thrown.
+        $this->expectException('\core\antivirus\scanner_exception');
+        $classification = $reflectionmethod->invoke($scanner, $fullpath);
     }
 }
