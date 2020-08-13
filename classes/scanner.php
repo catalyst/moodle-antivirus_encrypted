@@ -88,6 +88,7 @@ class scanner extends \core\antivirus\scanner {
             $type = $this->detect_filetype($file);
         } catch (\core\antivirus\scanner_exception $e) {
             // File is not what it appears to be. Block it outright.
+            $this->set_scanning_notice(get_string('mimetypemismatch', 'antivirus_encrypted'));
             return self::SCAN_RESULT_FOUND;
         }
 
@@ -101,7 +102,9 @@ class scanner extends \core\antivirus\scanner {
                 $enc = $this->is_archive_encrypted($file);
                 break;
         }
-
+        if ($enc) {
+            $this->set_scanning_notice(get_string('encryptedcontentfound', 'antivirus_encrypted'));
+        }
         return $enc ? self::SCAN_RESULT_FOUND : self::SCAN_RESULT_OK;
     }
 
