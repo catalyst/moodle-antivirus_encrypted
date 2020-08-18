@@ -128,8 +128,8 @@ class scanner extends \core\antivirus\scanner {
                 break;
 
             default:
-                // This should never happen.
-                return true;
+                // This file is not a supported archive file.
+                return false;
                 break;
         }
     }
@@ -176,7 +176,7 @@ class scanner extends \core\antivirus\scanner {
         if (array_key_exists($this->extension, $mimetypes)) {
             // First check if the mimetype matches the listed mimetype for the extension.
             $reported = mime_content_type($file);
-            if ($reported !== $mimetypes[$this->extension]['type']) {
+            if ($reported !== $mimetypes[$this->extension]['type'] && $this->extension !== 'mbz') {
                 throw new \core\antivirus\scanner_exception('Detected mimetype does not match extension mimetype');
             }
 
