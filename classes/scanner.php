@@ -158,9 +158,12 @@ class scanner extends \core\antivirus\scanner {
             case 'pdf':
                 return $this->is_pdf_encrypted($file);
                 break;
-        }
 
-        return true;
+            default:
+            // This is not a supported document file.
+            return false;
+            break;
+        }
     }
 
     /**
