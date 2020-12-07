@@ -276,4 +276,8 @@ class scanner extends \core\antivirus\scanner {
         $pdf->_destroy();
         return false;
     }
+
+    public function get_virus_found_message() {
+        return ['string' => 'encryptedcontentmessage', 'component' => 'antivirus_encrypted', 'placeholders' => []];
+    }
 }
