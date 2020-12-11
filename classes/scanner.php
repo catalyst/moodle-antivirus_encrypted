@@ -176,36 +176,50 @@ class scanner extends \core\antivirus\scanner {
         $mimetypes = get_mimetypes_array();
         $type = '';
 
-        if (array_key_exists($this->extension, $mimetypes)) {
-            // First check if the mimetype matches the listed mimetype for the extension.
-            $reported = mime_content_type($file);
-            if ($reported !== $mimetypes[$this->extension]['type'] && $this->extension !== 'mbz') {
-                throw new \core\antivirus\scanner_exception('Detected mimetype does not match extension mimetype');
-            }
+        $mimetype = mime_content_type($file);
+        // Filter array where subarray type is an exact match.
+        // If not found, do nothing, we don't care about this file.
+        // If found, look for a matching group attached to it.
+        // If no group, or group isnt archive or doc, do nothing.
+        $matchingexts = array_filter($mimetypes, function($element) use ($mimetype) {
+            return $element['type'] === $mimetype;
+        });
 
-            // Get containing group, and check if document or archive.
-            if (array_key_exists('groups', $mimetypes[$this->extension])) {
-                $groups = $mimetypes[$this->extension]['groups'];
-            }
-            if (!empty($groups)) {
-                if (in_array('document', $groups)) {
-                    $type = self::FILE_DOCUMENT;
-                    // If properly identified in Document group, set the type to extension.
-                    $this->filetype = $this->extension;
-
-                } else if (in_array('archive', $groups)) {
-                    $type = self::FILE_ARCHIVE;
-                    // If properly identified in Archive group, set the filetype to extension.
-                    $this->filetype = $this->extension;
+        // If the reported extension matches the mimetype registered extension, use that.
+        if (array_key_exists($this->extension, $matchingexts) &&
+            array_key_exists('groups', $matchingexts[$this->extension])) {
+            $groups = $matchingexts[$this->extension]['groups'];
+        } else {
+            // Iterate through matches until a group is located.
+            foreach ($matchingexts as $ext => $content) {
+                if (array_key_exists('groups', $content)) {
+                    $groups = $content['groups'];
+                    // We aren't trusting the extension that we were given.
+                    // Use this matching extension for reference.
+                    $this->extension = $ext;
+                    break;
                 }
             }
+        }
 
-            // Now lets do some more intelligent type matching for things that may not have a group.
-            if (stripos($mimetypes[$this->extension]['type'], 'vnd.oasis.opendocument')) {
-                // This is a libreoffice file of some kind. Treat all as docs for scanning purposes.
-                $this->filetype = 'libreoffice';
+        if (!empty($groups)) {
+            if (in_array('document', $groups)) {
                 $type = self::FILE_DOCUMENT;
+                // If properly identified in Document group, set the type to extension.
+                $this->filetype = $this->extension;
+
+            } else if (in_array('archive', $groups)) {
+                $type = self::FILE_ARCHIVE;
+                // If properly identified in Archive group, set the filetype to extension.
+                $this->filetype = $this->extension;
             }
+        }
+
+        // Now lets do some more intelligent type matching for things that may not have a group.
+        if (stripos($mimetype, 'vnd.oasis.opendocument')) {
+            // This is a libreoffice file of some kind. Treat all as docs for scanning purposes.
+            $this->filetype = 'libreoffice';
+            $type = self::FILE_DOCUMENT;
         }
 
         return empty($type) ? self::FILE_OTHER : $type;

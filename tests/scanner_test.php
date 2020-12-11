@@ -58,7 +58,7 @@ class antivirus_encrypted_scanner_testcase extends \advanced_testcase {
     }
 
     public function test_scan_file_mimetype_mismatch() {
-        $filename = 'mismatchedmime.odt';
+        $filename = 'mismatchedmimezip.xml';
         $fullpath = __DIR__ . '/fixtures/' . $filename;
         $scanner = new \antivirus_encrypted\scanner();
 
@@ -95,7 +95,7 @@ class antivirus_encrypted_scanner_testcase extends \advanced_testcase {
     }
 
     public function test_detect_filetype_mimetype_mismatch() {
-        $filename = 'mismatchedmime.odt';
+        $filename = 'mismatchedmimezip.xml';
         $fullpath = __DIR__ . '/fixtures/' . $filename;
         $scanner = new \antivirus_encrypted\scanner();
 
@@ -114,8 +114,7 @@ class antivirus_encrypted_scanner_testcase extends \advanced_testcase {
         $reflectionmethod = new ReflectionMethod($scanner, 'detect_filetype');
         $reflectionmethod->setAccessible(true);
 
-        // Now we are looking for an exception to be thrown.
-        $this->expectException('\core\antivirus\scanner_exception');
-        $classification = $reflectionmethod->invoke($scanner, $fullpath);
+        // Now we are looking for the classification to be a zip.
+        $this->assertEquals('archive', $reflectionmethod->invoke($scanner, $fullpath));
     }
 }
