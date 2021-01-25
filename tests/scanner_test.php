@@ -43,6 +43,7 @@ class antivirus_encrypted_scanner_testcase extends \advanced_testcase {
             ['zip-nonenc.zip', 0, 'zip', 'archive'],
             ['pdf-enc.pdf', 1, 'pdf', 'doc'],
             ['pdf-nonenc.pdf', 0, 'pdf', 'doc'],
+            ['pdf-emptypw.pdf', 0, 'pdf', 'doc'],
             ['notscanned.txt', 0, '', 'other'],
         ];
     }

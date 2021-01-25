@@ -275,19 +275,22 @@ class scanner extends \core\antivirus\scanner {
     }
 
     protected function is_pdf_encrypted(string $file) : bool {
+        global $CFG;
 
-        try {
-            $pdf = new \assignfeedback_editpdf\pdf();
-            $pages = $pdf->setSourceFile($file);
-        } catch (\Exception $e) {
-            $pdf->_destroy();
-            if (stripos($e->getMessage(), 'encrypted')) {
-                // There is a good chance this is the encryption message.
-                // There are different messages for different FPDI libs.
-                return true;
-            }
+        // Run file through ghostscript to ensure no encrpytion.
+        // If no path set, try the regular path. If it fails, The doc should pass.
+        $pathtogs = !empty($pathtogs) ? $CFG->pathtogs : '/usr/bin/gs';
+        $gsexec = \escapeshellarg($CFG->pathtogs);
+        $path = \escapeshellarg($file);
+        $devnull = \escapeshellarg('/dev/null');
+        $command = "$gsexec -q -sDEVICE=pdfwrite -dFirstPage=1 -dLastPage=1 -dBATCH -dNOPAUSE -sOutputFile=$devnull $path";
+
+        // Exec the GS run, then check for a pw error.
+        $result = shell_exec("$command 2>$devnull");
+        if (stripos($result, 'This file requires a password for access.') !== false) {
+            return true;
         }
-        $pdf->_destroy();
+
         return false;
     }
 
