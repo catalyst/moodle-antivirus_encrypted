@@ -24,6 +24,8 @@
  */
 namespace antivirus_encrypted;
 
+use ZipArchive;
+
 defined('MOODLE_INTERNAL') || die();
 
 /**
@@ -234,14 +236,21 @@ class scanner extends \core\antivirus\scanner {
      */
     protected function is_zip_encrypted(string $file) : bool {
         // Try to open as a zip. If it fails, may be passworded.
-        $zip = zip_open($file);
-        if (!is_resource($zip)) {
+        $zip = new ZipArchive;
+        $status = $zip->open($file);
+
+        if ($status !== true) {
             return true;
         }
 
-        $data = zip_read($zip);
-        if (!$data) {
+        $data = $zip->statIndex(0);
+        if ($data === false) {
             // If unable to read data, may be passworded.
+            return true;
+        }
+
+        // Finally, check for an encryption method on the file.
+        if (array_key_exists('encryption_method', $data) && $data['encryption_method'] !== ZipArchive::EM_NONE) {
             return true;
         }
 
@@ -286,8 +295,8 @@ class scanner extends \core\antivirus\scanner {
         $command = "$gsexec -q -sDEVICE=pdfwrite -dFirstPage=1 -dLastPage=1 -dBATCH -dNOPAUSE -sOutputFile=$devnull $path";
 
         // Exec the GS run, then check for a pw error.
-        $result = shell_exec("$command 2>$devnull");
-        if (stripos($result, 'This file requires a password for access.') !== false) {
+        exec("$command 2>&1", $output);
+        if (stripos(implode(',', $output), 'This file requires a password for access.') !== false) {
             return true;
         }
 
