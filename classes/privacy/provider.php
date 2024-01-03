@@ -25,8 +25,6 @@
 
 namespace antivirus_encrypted\privacy;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Antivirus_encrypted privacy provider class
  *
@@ -42,7 +40,7 @@ class provider implements \core_privacy\local\metadata\null_provider {
      *
      * @return  string
      */
-    public static function get_reason() : string {
+    public static function get_reason(): string {
         return 'privacy:metadata';
     }
 }
