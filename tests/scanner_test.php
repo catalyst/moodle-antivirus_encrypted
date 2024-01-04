@@ -14,6 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace antivirus_encrypted;
+
+use ReflectionClass;
+use ReflectionMethod;
+
 /**
  * Tests for antivirus scanner class.
  *
@@ -22,16 +27,43 @@
  * @copyright   Catalyst IT
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+class scanner_test extends \advanced_testcase {
 
-namespace antivirus_encrypted\tests;
+    /** @var string Folder to hold the temporary fixture copied file. */
+    private $tempfolder;
 
-use ReflectionClass;
-use ReflectionMethod;
+    protected function setUp(): void {
+        $this->resetAfterTest();
 
-class antivirus_encrypted_scanner_testcase extends \advanced_testcase {
+        // Create tempfolder.
+        $tempfolder = make_request_directory(false);
+        $this->tempfolder = $tempfolder;
+    }
 
-    public static function file_provider() {
-        // Each entry is [path, scanresult, filetype, class]
+    /**
+     * Return the path of a copied fixture file.
+     *
+     * Used to ensure the scanner works on paths where real files would live, outside of the fixture folder.
+     * @param string $path
+     * @return string
+     */
+    private function get_file_copy_path(string $path): string {
+        // Fixture source path.
+        $fullpath = __DIR__ . '/fixtures/' . $path;
+
+        // Copy the file to the tempfolder.
+        $newpath = $this->tempfolder . '/' . $path;
+        copy($fullpath, $newpath);
+        return $newpath;
+    }
+
+    /**
+     * Data provider for {@see test_scan_file, test_detect_filetype}
+     *
+     * @return array[]
+     */
+    public static function file_provider(): array {
+        // Each entry is [path, scanresult, filetype, class].
         return [
             ['libreofficedoc-enc.odt', 1, 'libreoffice', 'doc'],
             ['libreofficedoc-nonenc.odt', 0, 'libreoffice', 'doc'],
@@ -49,28 +81,45 @@ class antivirus_encrypted_scanner_testcase extends \advanced_testcase {
     }
 
     /**
+     * Test scanning files
+     *
      * @dataProvider file_provider
+     * @covers \antivirus_encrypted\scanner::scan_file
+     * @param mixed $path
+     * @param mixed $result
      */
     public function test_scan_file($path, $result) {
-        $fullpath = __DIR__ . '/fixtures/' . $path;
+        $fullpath = $this->get_file_copy_path($path);
         $scanner = new \antivirus_encrypted\scanner();
 
         $this->assertEquals($result, $scanner->scan_file($fullpath, $path));
     }
 
+    /**
+     * Test scan file mimetype mismatch
+     *
+     * @covers \antivirus_encrypted\scanner::scan_file
+     */
     public function test_scan_file_mimetype_mismatch() {
         $filename = 'mismatchedmimezip.xml';
-        $fullpath = __DIR__ . '/fixtures/' . $filename;
+        $fullpath = $this->get_file_copy_path($filename);
         $scanner = new \antivirus_encrypted\scanner();
 
         $this->assertEquals(1, $scanner->scan_file($fullpath, $filename));
     }
 
     /**
+     * Test detecting filetypes
+     *
      * @dataProvider file_provider
+     * @covers \antivirus_encrypted\scanner::detect_filetype
+     * @param mixed $path
+     * @param mixed $result
+     * @param mixed $filetype
+     * @param mixed $expectedclassification
      */
     public function test_detect_filetype($path, $result, $filetype, $expectedclassification) {
-        $fullpath = __DIR__ . '/fixtures/' . $path;
+        $fullpath = $this->get_file_copy_path($path);
         // We need a fresh scanner everytime.
         $scanner = new \antivirus_encrypted\scanner();
 
@@ -95,9 +144,14 @@ class antivirus_encrypted_scanner_testcase extends \advanced_testcase {
         $this->assertEquals($expectedclassification, $classification);
     }
 
+    /**
+     * Test detecting filetype mimetype mismatch
+     *
+     * @covers \antivirus_encrypted\scanner::detect_filetype
+     **/
     public function test_detect_filetype_mimetype_mismatch() {
         $filename = 'mismatchedmimezip.xml';
-        $fullpath = __DIR__ . '/fixtures/' . $filename;
+        $fullpath = $this->get_file_copy_path($filename);
         $scanner = new \antivirus_encrypted\scanner();
 
         // Let's make stuff public using reflection.

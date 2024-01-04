@@ -26,8 +26,6 @@ namespace antivirus_encrypted;
 
 use ZipArchive;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Scanner class for antivirus_encrypted.
  *
@@ -38,8 +36,13 @@ defined('MOODLE_INTERNAL') || die();
  */
 class scanner extends \core\antivirus\scanner {
 
+    /** @var string */
     const FILE_ARCHIVE = 'archive';
+
+    /** @var string */
     const FILE_DOCUMENT = 'doc';
+
+    /** @var string */
     const FILE_OTHER = 'other';
 
     /**
@@ -57,7 +60,7 @@ class scanner extends \core\antivirus\scanner {
      *
      * @return boolean
      */
-    public function is_configured() : bool {
+    public function is_configured(): bool {
 
         // Check that PHP dependencies are available.
         if (!class_exists('\ZipArchive')) {
@@ -74,7 +77,7 @@ class scanner extends \core\antivirus\scanner {
      * @param string $filename the name of the file.
      * @return int status of the scan
      */
-    public function scan_file($file, $filename) : int {
+    public function scan_file($file, $filename): int {
         // Check if the file extension is even allowed in the system.
         // If not, return OK and it will be blocked at file level.
         $this->extension = pathinfo($filename, PATHINFO_EXTENSION);
@@ -116,7 +119,7 @@ class scanner extends \core\antivirus\scanner {
      * @param string $file the full path to the file
      * @return boolean whether the file is encrypted
      */
-    protected function is_archive_encrypted(string $file) : bool {
+    protected function is_archive_encrypted(string $file): bool {
         // @codingStandardsIgnoreStart
         // This block will need code eventually.
         if (empty($this->filetype)) {
@@ -142,7 +145,7 @@ class scanner extends \core\antivirus\scanner {
      * @param string $file the full path to the file
      * @return boolean whether the file is encrypted
      */
-    protected function is_document_encrypted(string $file) : bool {
+    protected function is_document_encrypted(string $file): bool {
         // @codingStandardsIgnoreStart
         // This block will need code eventually.
         if (empty($this->filetype)) {
@@ -162,7 +165,7 @@ class scanner extends \core\antivirus\scanner {
                 break;
 
             default:
-            // This is not a supported document file.
+                // This is not a supported document file.
             return false;
             break;
         }
@@ -174,7 +177,7 @@ class scanner extends \core\antivirus\scanner {
      * @param string $file the full path to the file
      * @return string the file constant
      */
-    protected function detect_filetype($file) : string {
+    protected function detect_filetype($file): string {
         $mimetypes = get_mimetypes_array();
         $type = '';
 
@@ -183,7 +186,7 @@ class scanner extends \core\antivirus\scanner {
         // If not found, do nothing, we don't care about this file.
         // If found, look for a matching group attached to it.
         // If no group, or group isnt archive or doc, do nothing.
-        $matchingexts = array_filter($mimetypes, function($element) use ($mimetype) {
+        $matchingexts = array_filter($mimetypes, function ($element) use ($mimetype) {
             return $element['type'] === $mimetype;
         });
 
@@ -209,7 +212,6 @@ class scanner extends \core\antivirus\scanner {
                 $type = self::FILE_DOCUMENT;
                 // If properly identified in Document group, set the type to extension.
                 $this->filetype = $this->extension;
-
             } else if (in_array('archive', $groups)) {
                 $type = self::FILE_ARCHIVE;
                 // If properly identified in Archive group, set the filetype to extension.
@@ -234,7 +236,7 @@ class scanner extends \core\antivirus\scanner {
      * @param string $file the full path to the file.
      * @return boolean whether the file is encrypted.
      */
-    protected function is_zip_encrypted(string $file) : bool {
+    protected function is_zip_encrypted(string $file): bool {
         // Try to open as a zip. If it fails, may be passworded.
         $zip = new ZipArchive;
         $status = $zip->open($file);
@@ -263,7 +265,7 @@ class scanner extends \core\antivirus\scanner {
      * @param string $file the full path to the file
      * @return boolean
      */
-    protected function is_libreoffice_encrypted(string $file) : bool {
+    protected function is_libreoffice_encrypted(string $file): bool {
         // We need to open the archive as a zip and extract the META-INF/manifest.xml and check for encryption data.
         // We have already determined this will open correctly. Any errors should just return true.
         $zip = new \ZipArchive();
@@ -283,7 +285,13 @@ class scanner extends \core\antivirus\scanner {
         return false;
     }
 
-    protected function is_pdf_encrypted(string $file) : bool {
+    /**
+     * Returns whether or not the PDF is encrypted.
+     *
+     * @param string $file the full path to the file
+     * @return boolean
+     */
+    protected function is_pdf_encrypted(string $file): bool {
         global $CFG;
 
         // Run file through ghostscript to ensure no encrpytion.
@@ -303,6 +311,11 @@ class scanner extends \core\antivirus\scanner {
         return false;
     }
 
+    /**
+     * Returns the virus found message structure.
+     *
+     * @return array
+     */
     public function get_virus_found_message() {
         return ['string' => 'encryptedcontentmessage', 'component' => 'antivirus_encrypted', 'placeholders' => []];
     }
