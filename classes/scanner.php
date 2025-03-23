@@ -24,6 +24,7 @@
  */
 namespace antivirus_encrypted;
 
+use Throwable;
 use ZipArchive;
 
 /**
@@ -97,44 +98,56 @@ class scanner extends \core\antivirus\scanner {
             return self::SCAN_RESULT_FOUND;
         }
 
-        $enc = false;
-        switch ($type) {
-            case self::FILE_DOCUMENT:
-                $enc = $this->is_document_encrypted($file);
-                break;
+        // Default not detected.
+        $result = scan_result::new(scan_result::STATUS_NOT_DETECTED, '');
 
-            case self::FILE_ARCHIVE:
-                $enc = $this->is_archive_encrypted($file);
-                break;
+        try {
+            switch ($type) {
+                case self::FILE_DOCUMENT:
+                    $result = $this->scan_as_document($file);
+                    break;
+
+                case self::FILE_ARCHIVE:
+                    $result = $this->scan_as_archive($file);
+                    break;
+            }
+        } catch (Throwable $e) {
+            $this->set_scanning_notice('Exception encountered trying to scan file');
+            return self::SCAN_RESULT_FOUND;
         }
-        if ($enc) {
-            $this->set_scanning_notice(get_string('encryptedcontentfound', 'antivirus_encrypted'));
+
+        // Found something - log and return error.
+        if ($result->get_status() == scan_result::STATUS_DETECTED) {
+            // TODO do these messages get shown to the user ? If so we might need to sanitize.
+            $this->set_scanning_notice(get_string('encryptedcontentfound', 'antivirus_encrypted', $result->get_message()));
+            return self::SCAN_RESULT_FOUND;
+
         }
-        return $enc ? self::SCAN_RESULT_FOUND : self::SCAN_RESULT_OK;
+        if ($result->get_status() == scan_result::STATUS_CANNOT_RUN) {
+            // TODO do these messages get shown to the user ? If so we might need to sanitize.
+            $this->set_scanning_notice('could not run encrypted scanner, defaulting to block');
+            return self::SCAN_RESULT_FOUND;
+        }
+
+        // TODO what about scanner cannot run ?
+
+        return self::SCAN_RESULT_OK;
     }
 
     /**
      * Checks if provided archive file is encrypted.
      *
      * @param string $file the full path to the file
-     * @return boolean whether the file is encrypted
      */
-    protected function is_archive_encrypted(string $file): bool {
-        // @codingStandardsIgnoreStart
-        // This block will need code eventually.
-        if (empty($this->filetype)) {
-            // Detect filetype here if not set.
-        }
-        // @codingStandardsIgnoreEnd
-
+    protected function scan_as_archive(string $file): scan_result {
         switch ($this->filetype) {
             case 'zip':
-                return $this->is_zip_encrypted($file);
+                return $this->scan_as_zip_archive($file);
                 break;
 
             default:
                 // This file is not a supported archive file.
-                return false;
+                return scan_result::new(scan_result::STATUS_NOT_DETECTED, '');
                 break;
         }
     }
@@ -143,9 +156,9 @@ class scanner extends \core\antivirus\scanner {
      * Checks if provided document file is encrypted.
      *
      * @param string $file the full path to the file
-     * @return boolean whether the file is encrypted
+     * @return scan_result
      */
-    protected function is_document_encrypted(string $file): bool {
+    protected function scan_as_document(string $file): scan_result {
         // @codingStandardsIgnoreStart
         // This block will need code eventually.
         if (empty($this->filetype)) {
@@ -157,17 +170,17 @@ class scanner extends \core\antivirus\scanner {
 
         switch ($filetype) {
             case 'libreoffice':
-                return $this->is_libreoffice_encrypted($file);
+                return $this->scan_as_libreoffice_document($file);
                 break;
 
             case 'pdf':
-                return $this->is_pdf_encrypted($file);
+                return $this->scan_as_pdf_document($file);
                 break;
 
             default:
                 // This is not a supported document file.
-            return false;
-            break;
+                return scan_result::new(scan_result::STATUS_NOT_DETECTED, 'Unsupported document filetype ' . $filetype);
+                break;
         }
     }
 
@@ -234,81 +247,133 @@ class scanner extends \core\antivirus\scanner {
      * If passed a file that is not a zip this will not be correct.
      *
      * @param string $file the full path to the file.
-     * @return boolean whether the file is encrypted.
      */
-    protected function is_zip_encrypted(string $file): bool {
+    protected function scan_as_zip_archive(string $file): scan_result {
         // Try to open as a zip. If it fails, may be passworded.
         $zip = new ZipArchive;
         $status = $zip->open($file);
 
         if ($status !== true) {
-            return true;
+            return scan_result::new(scan_result::STATUS_DETECTED, 'Unable to open zip, assuming encrypted');
         }
 
         $data = $zip->statIndex(0);
         if ($data === false) {
             // If unable to read data, may be passworded.
-            return true;
+            return scan_result::new(scan_result::STATUS_DETECTED, 'Unable to read zip data, assuming encrypted');
         }
 
         // Finally, check for an encryption method on the file.
         if (array_key_exists('encryption_method', $data) && $data['encryption_method'] !== ZipArchive::EM_NONE) {
-            return true;
+            return scan_result::new(scan_result::STATUS_DETECTED, 'Zip archive encryption method enabled');
         }
 
-        return false;
+        return scan_result::new(scan_result::STATUS_NOT_DETECTED,  '');
     }
 
     /**
      * Reads a libreoffice file and determines if it is encrypted.
      *
      * @param string $file the full path to the file
-     * @return boolean
      */
-    protected function is_libreoffice_encrypted(string $file): bool {
+    protected function scan_as_libreoffice_document(string $file): scan_result {
         // We need to open the archive as a zip and extract the META-INF/manifest.xml and check for encryption data.
         // We have already determined this will open correctly. Any errors should just return true.
         $zip = new \ZipArchive();
         $opened = $zip->open($file);
         if (!$opened) {
-            return true;
+            return new scan_result(scan_result::STATUS_DETECTED, 'Unable to open libreoffice file, assuming encrypted');
         }
         $manifest = $zip->getFromName('META-INF/manifest.xml');
         $zip->close();
 
         // A simple grep for encryption-data string is enough to determine.
         if (!empty($manifest) && stripos($manifest, 'encryption-data')) {
-            return true;
+            return new scan_result(scan_result::STATUS_DETECTED, 'Encryption data found in manifest of libreoffice file');
         }
 
         // Making it here means no encryption.
-        return false;
+        return new scan_result(scan_result::STATUS_NOT_DETECTED, '');
+    }
+
+    protected function scan_as_pdf_document(string $file): scan_result {
+        // Run both Ghostscript and PDFInfo.
+        $gsresult = $this->scan_as_pdf_with_ghostscript($file);
+        $pdfinforesult = $this->scan_as_pdf_with_pdfinfo($file);
+
+        // First we rely on ghostscript, but only if no warnings are detected.
+        if ($gsresult->get_status() == scan_result::STATUS_DETECTED)  {
+            return $gsresult;
+        // Second, if pdfinfo couldn't run (e.g. not installed), and ghostscript detected but with warnings, then just return the gs result.
+        } else if ($gsresult->get_status() == scan_result::STATUS_DETECTED_WITH_WARNINGS && $pdfinforesult->get_status() == scan_result::STATUS_CANNOT_RUN) {
+            return $gsresult;
+        // Third, if pdfinfo could run and detected, and ghostscript detected with warnings, return true (likely just a malformed pdf that ghostscript doesn't like).
+        } else if ($gsresult->get_status() == scan_result::STATUS_DETECTED_WITH_WARNINGS && $pdfinforesult->get_status() == scan_result::STATUS_DETECTED) {
+            return scan_result::new(scan_result::STATUS_DETECTED, 'Ghostscript detected but with warnings: ' . $gsresult->get_message() . ' but pdfinfo also detected: ' . $pdfinforesult->get_message() . ' - highly likely encrypted');
+        }
+
+        return scan_result::new(scan_result::STATUS_NOT_DETECTED, '');
     }
 
     /**
-     * Returns whether or not the PDF is encrypted.
+     * Returns whether or not the PDF is encrypted using ghostscript
      *
      * @param string $file the full path to the file
-     * @return boolean
+     * @return scan_result
      */
-    protected function is_pdf_encrypted(string $file): bool {
+    protected function scan_as_pdf_with_ghostscript(string $file): scan_result {
         global $CFG;
+
+        // Check if gs binary exists.
+        if (!is_executable($CFG->pathtogs)) {
+            return scan_result::new(scan_result::STATUS_CANNOT_RUN, 'Ghostscript binary not found');
+        }
 
         // Run file through ghostscript to ensure no encrpytion.
         // If no path set, try the regular path. If it fails, The doc should pass.
-        $pathtogs = !empty($pathtogs) ? $CFG->pathtogs : '/usr/bin/gs';
         $gsexec = \escapeshellarg($CFG->pathtogs);
         $path = \escapeshellarg($file);
         $devnull = \escapeshellarg('/dev/null');
-        $command = "$gsexec -q -sDEVICE=pdfwrite -dFirstPage=1 -dLastPage=1 -dBATCH -dNOPAUSE -sOutputFile=$devnull $path";
+        $command = "$gsexec -sDEVICE=pdfwrite -dFirstPage=1 -dLastPage=1 -dBATCH -dNOPAUSE -sOutputFile=$devnull $path";
 
         // Exec the GS run, then check for a pw error.
         exec("$command 2>&1", $output);
-        if (stripos(implode(',', $output), 'This file requires a password for access.') !== false) {
-            return true;
+        $passworddetected = stripos(implode(',', $output), 'This file requires a password for access.') !== false;
+        $warningdetected = stripos(implode(',', $output), 'Invalid /Length supplied in Encryption dictionary.') !== false;
+
+        if ($passworddetected && !$warningdetected) {
+            return scan_result::new(scan_result::STATUS_DETECTED, '');
+        } else if ($passworddetected && $warningdetected) {
+            return scan_result::new(scan_result::STATUS_DETECTED_WITH_WARNINGS, 'Invalid encryption dictionary warning detected, likely not compliant PDF');
+        } else {
+            return scan_result::new(scan_result::STATUS_NOT_DETECTED, '');
+        }
+    }
+
+    /**
+     * Returns whether or not a PDF is encrypted using pdfinfo
+     *
+     * @param string $file the full path to the file
+     * @return scan_result
+     */
+    protected function scan_as_pdf_with_pdfinfo(string $file): scan_result {
+        $pdfinfopath = get_config('antivirus_encrypted', 'pathtopdfinfo'); // TODO do we need a gui setting
+
+        // Ensure PDFinfo exists.
+        if (!is_executable($pdfinfopath)) {
+            return scan_result::new(scan_result::STATUS_CANNOT_RUN, 'Pdfinfo binary not found');
         }
 
-        return false;
+        $pdfinfoexec = \escapeshellarg($pdfinfopath);
+        $path = \escapeshellarg($file);
+        $command = "$pdfinfoexec $path";
+
+        exec("$command 2>&1", $output);
+        if (stripos(implode(',', $output), 'Incorrect password') !== false) {
+            return scan_result::new(scan_result::STATUS_DETECTED, 'Password detected by PDFInfo');
+        }
+
+        return scan_result::new(scan_result::STATUS_NOT_DETECTED, '');
     }
 
     /**

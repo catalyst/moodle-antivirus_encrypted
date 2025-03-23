@@ -28,5 +28,5 @@ defined('MOODLE_INTERNAL') || die();
 $string['pluginname'] = 'Encrypted content';
 $string['privacy:metadata'] = 'The antivirus_encrypted plugin stores no user data.';
 $string['mimetypemismatch'] = 'File content mimetype did not match registered mimetype for extension.';
-$string['encryptedcontentfound'] = 'Encrypted file found. File content was unable to be inspected.';
+$string['encryptedcontentfound'] = 'Encrypted file found. File content was unable to be inspected. {$a}';
 $string['encryptedcontentmessage'] = '{$a->item} was unable to be inspected, due to encryption on the file.';
