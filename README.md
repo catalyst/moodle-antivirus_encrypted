@@ -17,6 +17,13 @@ i.e. if we cannot inspect the file then we fail safe.
  * Libreoffice documents
  * PDF documents
 
+### PDF information
+Unfortunately the PDF specification is quite complicated and has varying levels of implementation, which can occasionally lead to incorrect encryption detection. 
+
+PDFs can be scanned for encryption with Ghostscript (default) and/or QPDF. Ghostscript is used in other parts of Moodle so is likely already installed, but has been know to emit false positives for documents using some of the more obscure PDF features. QPDF tends to be more forgiving, but is likely not already installed. 
+
+You can enable/disable these from the antivirus_encrypted configuration page in the Administrator settings.
+
 ## Branches
 
 | LMS version         | Branch           | PHP |

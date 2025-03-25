@@ -14,14 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 //
-/**
- * Scanner implementation for antivirus_encrypted.
- *
- * @package     antivirus_encrypted
- * @author      Peter Burnett <peterburnett@catalyst-au.net>
- * @copyright   Catalyst IT
- * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
+
 namespace antivirus_encrypted;
 
 use ZipArchive;
@@ -67,7 +60,49 @@ class scanner extends \core\antivirus\scanner {
             return false;
         }
 
+        // If using ghostscript, ensure ghostscript can be run.
+        if ($this->uses_gs() && !is_executable($this->get_gs_path())) {
+            return false;
+        }
+
+        // If using qpdf, ensure qpdf can be run.
+        if ($this->uses_qpdf() && !is_executable($this->get_qpdf_path())) {
+            return false;
+        }
+
         return true;
+    }
+
+    /**
+     * Should the scanner use ghostscript to detect encrypted pdfs?
+     * @return bool
+     */
+    public function uses_gs(): bool {
+        return (bool) get_config('antivirus_encrypted', 'usegs');
+    }
+
+    /**
+     * Should the scanner use qpdf to detect encrypted pdfs?
+     * @return bool
+     */
+    public function uses_qpdf(): bool {
+        return (bool) get_config('antivirus_encrypted', 'useqpdf');
+    }
+
+    /**
+     * Returns the path to the ghostscript executable
+     * @return string
+     */
+    public function get_gs_path(): string {
+        return (string) get_config('core', 'pathtogs');
+    }
+
+    /**
+     * Returns the path to the qpdf executable
+     * @return string
+     */
+    public function get_qpdf_path(): string {
+        return (string) get_config('antivirus_encrypted', 'pathtoqpdf');
     }
 
     /**
@@ -288,16 +323,47 @@ class scanner extends \core\antivirus\scanner {
     /**
      * Returns whether or not the PDF is encrypted.
      *
+     * This uses ghostscript and/or qpdf depending on configuration.
+     * If neither are enabled, this always returns false (disabled).
+     * If both are enabled, they must both agree that a PDF is encrypted for
+     * true to be returned.
+     *
      * @param string $file the full path to the file
      * @return boolean
      */
     protected function is_pdf_encrypted(string $file): bool {
-        global $CFG;
+        $results = [];
 
-        // Run file through ghostscript to ensure no encrpytion.
-        // If no path set, try the regular path. If it fails, The doc should pass.
-        $pathtogs = !empty($pathtogs) ? $CFG->pathtogs : '/usr/bin/gs';
-        $gsexec = \escapeshellarg($CFG->pathtogs);
+        if ($this->uses_gs()) {
+            $results[] = $this->is_pdf_encrypted_gs($file);
+        }
+
+        if ($this->uses_qpdf()) {
+            $results[] = $this->is_pdf_encrypted_qpdf($file);
+        }
+
+        // None are enabled, we return false as this assumes user is intending to skip encrypted pdf checks.
+        if (empty($results)) {
+            return false;
+        }
+
+        // Only return true if all enabled binaries agree that this was encrypted.
+        $alltrue = count($results) == count(array_filter($results));
+        if ($alltrue) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Returns whether or not the PDF is encrypted using Ghostscript.
+     *
+     * @param string $file the full path to the file
+     * @return boolean
+     */
+    protected function is_pdf_encrypted_gs(string $file): bool {
+        $gsexec = \escapeshellarg($this->get_gs_path());
         $path = \escapeshellarg($file);
         $devnull = \escapeshellarg('/dev/null');
         $command = "$gsexec -q -sDEVICE=pdfwrite -dFirstPage=1 -dLastPage=1 -dBATCH -dNOPAUSE -sOutputFile=$devnull $path";
@@ -310,6 +376,30 @@ class scanner extends \core\antivirus\scanner {
 
         return false;
     }
+
+    /**
+     * Returns whether or not the PDF is encrypted using QPDF.
+     *
+     * @param string $file the full path to the file
+     * @return boolean
+     */
+    protected function is_pdf_encrypted_qpdf(string $file): bool {
+        $qpdfexec = \escapeshellarg($this->get_qpdf_path());
+        $path = \escapeshellarg($file);
+        $command = "$qpdfexec --show-encryption $path";
+
+        exec("$command 2>&1", $output);
+
+        // This outputs 'invalid password' if the file is truly encrypted.
+        // If there is an owners password it will print out the permission details (such as printing restricted),
+        // otherwise if neither is set it will output 'File is not encrypted'.
+        if (stripos(implode(',', $output), 'invalid password') !== false) {
+            return true;
+        }
+
+        return false;
+    }
+
 
     /**
      * Returns the virus found message structure.
