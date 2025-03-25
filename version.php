@@ -25,8 +25,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2020072000;      // The current plugin version (Date: YYYYMMDDXX).
-$plugin->release   = 2020072000;      // Same as version.
+$plugin->version   = 2025032500.01;      // The current plugin version (Date: YYYYMMDDXX).
+$plugin->release   = 2025032500.01;      // Same as version.
 $plugin->requires  = 2017051500.00;   // Support back to 3.3.
 $plugin->component = 'antivirus_encrypted';
 $plugin->maturity  = MATURITY_ALPHA;

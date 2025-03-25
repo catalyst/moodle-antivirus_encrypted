@@ -76,6 +76,7 @@ class scanner_test extends \advanced_testcase {
             ['pdf-enc.pdf', 1, 'pdf', 'doc'],
             ['pdf-nonenc.pdf', 0, 'pdf', 'doc'],
             ['pdf-emptypw.pdf', 0, 'pdf', 'doc'],
+            ['pdf-restrictedownerpw.pdf', 0, 'pdf', 'doc'],
             ['notscanned.txt', 0, '', 'other'],
         ];
     }
@@ -171,5 +172,17 @@ class scanner_test extends \advanced_testcase {
 
         // Now we are looking for the classification to be a zip.
         $this->assertEquals('archive', $reflectionmethod->invoke($scanner, $fullpath));
+    }
+
+    /**
+     * Tests when all pdf scanners are disabled, that encrypted pdfs are ignored / not detected.
+     *
+     * @covers \antivirus_encrypted\scanner::scan_file
+     */
+    public function test_scan_pdf_all_disabled() {
+        set_config('usegs', false, 'antivirus_encrypted');
+        set_config('useqpdf', false, 'antivirus_encrypted');
+        $scanner = new \antivirus_encrypted\scanner();
+        $this->assertEquals(false, $scanner->scan_file($this->get_file_copy_path('pdf-enc.pdf'), 'pdf-enc.pdf'));
     }
 }
