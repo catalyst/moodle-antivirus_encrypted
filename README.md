@@ -26,13 +26,30 @@ You can enable/disable these from the antivirus_encrypted configuration page in 
 
 ## Branches
 
-| LMS version         | Branch           | PHP |
-|---------------------|------------------|-----|
-| Moodle 3.3+         | master           | 7.4 |
-| Totara 12+          | master           | 7.4 |
+| LMS version         | Branch           | PHP      |
+|----------------------|------------------|----------|
+| Moodle 3.3+           | master           | 7.4      |
+| Totara 12+ - Totara 19 | master           | 7.4      |
+| Totara 20+            | TOTARA_20        | 8.1, 8.2 |
 
-This plugin supports Moodle 3.3+ and Totara 12+. All supported versions should
-use the master branch of the plugin.
+This plugin supports Moodle 3.3+ and Totara 12+. Totara 12-19 sites should use
+the master branch. Totara 20 sites must use the TOTARA_20 branch.
+
+### Totara 20 compatibility notes
+
+Totara 20 restructured several core subsystems (settings API, external API,
+privacy API removal, etc.) and tightened PHPUnit's leak-detection rules for
+test classes. The `TOTARA_20` branch contains the following change on top of
+`master`:
+
+* `tests/scanner_test.php` now resets the `$tempfolder` property in a
+  `tearDown()` method. Totara 20's `core_phpunit\testcase` fails any test
+  that leaves a non-default class property set after the test runs, so this
+  is required purely to satisfy that check - it has no effect on the
+  plugin's runtime behaviour.
+
+No other changes were required; the scanner logic, settings, and language
+strings work unmodified on Totara 20.
 
 ## Support
 

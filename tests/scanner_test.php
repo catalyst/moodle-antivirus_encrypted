@@ -40,6 +40,11 @@ class scanner_test extends \advanced_testcase {
         $this->tempfolder = $tempfolder;
     }
 
+    protected function tearDown(): void {
+        $this->tempfolder = null;
+        parent::tearDown();
+    }
+
     /**
      * Return the path of a copied fixture file.
      *
